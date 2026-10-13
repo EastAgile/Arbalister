@@ -354,7 +354,7 @@ export class ArrowGridViewerFactory extends ABCWidgetFactory<IDocumentWidget<Arr
       gridViewer.fileInfo,
     );
 
-    return toolbar ? [{ name: `arbalister:${ft.name}-toolbar`, widget: toolbar }] : [];
+    return toolbar ? [{ name: `jenner-dataview:${ft.name}-toolbar`, widget: toolbar }] : [];
   }
 
   updateIcon(widget: IDocumentWidget<ArrowGridViewer>) {

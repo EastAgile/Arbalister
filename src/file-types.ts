@@ -67,7 +67,7 @@ function _getIconSvg(fileType: FileType, isLight: boolean): string {
 
 function _makeIcon(fileType: FileType, isLight: boolean): LabIcon {
   return new LabIcon({
-    name: `arbalister:${fileType}`,
+    name: `jenner-dataview:${fileType}`,
     svgstr: _getIconSvg(fileType, isLight),
   });
 }

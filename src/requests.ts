@@ -7,6 +7,11 @@ import type * as Arrow from "apache-arrow";
 import type { FileInfo, FileInfoFor, FileReadOptions, FileReadOptionsFor } from "./file-options";
 import type { FileType } from "./file-types";
 
+/**
+ * Prefix of the server routes answering the viewer's requests.
+ */
+const API_PREFIX = "jenner/dataview";
+
 export interface FileInfoOptions {
   path: string;
 }
@@ -29,10 +34,10 @@ export interface FileInfoResponse {
 
 export async function fetchFileInfo(params: Readonly<FileInfoOptions>): Promise<FileInfoResponse> {
   const settings = ServerConnection.makeSettings();
-  const url = URLExt.join(settings.baseUrl, "arbalister/file/info", params.path);
+  const url = URLExt.join(settings.baseUrl, `${API_PREFIX}/file/info`, params.path);
   const response = await ServerConnection.makeRequest(url, {}, settings);
   if (!response.ok) {
-    throw new Error(`Error communicating with the Arbalister server: ${response.status}`);
+    throw new Error(`Error communicating with the dataset viewer server: ${response.status}`);
   }
   const data: FileInfoResponse = await response.json();
   return data;
@@ -50,10 +55,10 @@ export async function fetchFileSupport(
   params: Readonly<FileInfoOptions>,
 ): Promise<FileSupportResponse> {
   const settings = ServerConnection.makeSettings();
-  const url = URLExt.join(settings.baseUrl, "arbalister/file/supported", params.path);
+  const url = URLExt.join(settings.baseUrl, `${API_PREFIX}/file/supported`, params.path);
   const response = await ServerConnection.makeRequest(url, {}, settings);
   if (!response.ok) {
-    throw new Error(`Error communicating with the Arbalister server: ${response.status}`);
+    throw new Error(`Error communicating with the dataset viewer server: ${response.status}`);
   }
   const data: FileSupportResponse = await response.json();
   return data;
@@ -113,10 +118,10 @@ export async function fetchStats(
 
   const settings = ServerConnection.makeSettings();
   const url =
-    URLExt.join(settings.baseUrl, "arbalister/arrow/stats", params.path) + `?${query.toString()}`;
+    URLExt.join(settings.baseUrl, `${API_PREFIX}/arrow/stats`, params.path) + `?${query.toString()}`;
   const response = await ServerConnection.makeRequest(url, {}, settings);
   if (!response.ok) {
-    throw new Error(`Error communicating with the Arbalister server: ${response.status}`);
+    throw new Error(`Error communicating with the dataset viewer server: ${response.status}`);
   }
   const data: StatsResponseRaw = await response.json();
 
@@ -185,10 +190,10 @@ export async function fetchTable(
 
   const settings = ServerConnection.makeSettings();
   const url =
-    URLExt.join(settings.baseUrl, "arbalister/arrow/stream", params.path) + `?${query.toString()}`;
+    URLExt.join(settings.baseUrl, `${API_PREFIX}/arrow/stream`, params.path) + `?${query.toString()}`;
   const response = await ServerConnection.makeRequest(url, {}, settings);
   if (!response.ok) {
-    throw new Error(`Error communicating with the Arbalister server: ${response.status}`);
+    throw new Error(`Error communicating with the dataset viewer server: ${response.status}`);
   }
   return await tableFromIPC(response);
 }

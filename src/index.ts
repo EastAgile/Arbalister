@@ -53,12 +53,26 @@ export class NoOpContentProvider implements services.IContentProvider {
   private _currentDrive: services.Contents.IDrive;
 }
 
-const NOOP_CONTENT_PROVIDER_ID = "noop-provider";
+const NOOP_CONTENT_PROVIDER_ID = "jenner-dataview-noop-provider";
+
+/**
+ * The file types this viewer opens. Only formats the Jenner server can read are
+ * registered, so that CSV, SQLite, ORC and Arrow IPC keep their existing viewers.
+ */
+const VIEWER_FILE_TYPES: FileType[] = [
+  FileType.Avro,
+  FileType.Parquet,
+  FileType.Sas7bdat,
+  FileType.SasXport,
+  FileType.Spss,
+  FileType.SpssPortable,
+  FileType.Stata,
+];
 
 const arrowGrid: JupyterFrontEndPlugin<void> = {
   activate: activateArrowGrid,
-  id: "@arbalister/arrowgridviewer-extension:arrowgrid",
-  description: "Adds viewer for file that can be read into Arrow format.",
+  id: "@jenner/dataviewer:arrowgrid",
+  description: "Adds a viewer for datasets read by Jenner.",
   requires: [ITranslator, IDefaultDrive],
   optional: [ILayoutRestorer, IThemeManager],
   autoStart: true,
@@ -71,9 +85,9 @@ function activateArrowGrid(
   restorer: ILayoutRestorer | null,
   themeManager: IThemeManager | null,
 ): void {
-  console.log("Launching JupyterLab extension arbalister");
+  console.log("Launching JupyterLab extension @jenner/dataviewer");
 
-  const factory_arrow = "ArrowTable";
+  const factory_arrow = "JennerDataView";
 
   const trans = translator.load("jupyterlab");
 
@@ -92,13 +106,13 @@ function activateArrowGrid(
     isLight = currentTheme ? themeManager?.isLight(currentTheme as string) : true;
   }
 
-  const fileTypes = FileType.all().map((ft) => ensureFileType(app.docRegistry, ft, isLight));
+  const fileTypes = VIEWER_FILE_TYPES.map((ft) => ensureFileType(app.docRegistry, ft, isLight));
   const fileTypesNames = fileTypes.map((ft) => ft.name);
 
   const factory = new ArrowGridViewerFactory(
     {
       name: factory_arrow,
-      label: trans.__("Arrow Dataframe Viewer"),
+      label: trans.__("Jenner Dataset Viewer"),
       fileTypes: fileTypesNames,
       defaultFor: fileTypesNames,
       readOnly: true,
@@ -108,7 +122,7 @@ function activateArrowGrid(
     app.docRegistry,
   );
   const tracker = new WidgetTracker<IDocumentWidget<ArrowGridViewer>>({
-    namespace: "arrowviewer",
+    namespace: "jenner-dataview",
   });
   let style: DataGrid.Style = Private.LIGHT_STYLE;
   let rendererConfig: ITextRenderConfig = Private.LIGHT_TEXT_CONFIG;
@@ -136,7 +150,7 @@ function activateArrowGrid(
       widget.content.style = style;
       widget.content.rendererConfig = rendererConfig;
       updateThemes();
-      console.log("JupyterLab extension arbalister is activated!");
+      console.log("JupyterLab extension @jenner/dataviewer is activated!");
     } catch (error) {
       await showErrorMessage(
         trans.__("ArrowGridViewer widget initialization failed"),
@@ -157,7 +171,7 @@ function activateArrowGrid(
     });
 
     // Update the file icons to match theme
-    FileType.all().forEach((ft) => {
+    VIEWER_FILE_TYPES.forEach((ft) => {
       updateIcon(app.docRegistry, ft, isLightNew);
     });
   };
