@@ -8,8 +8,13 @@ import orcLightSvg from "../style/icons/orc.svg";
 import orcDarkSvg from "../style/icons/orc_dark.svg";
 import parquetSvgLight from "../style/icons/parquet.svg";
 import parquetSvgDark from "../style/icons/parquet_dark.svg";
+import sasSvg from "../style/icons/sas.svg";
+import spssSvg from "../style/icons/spss.svg";
+import spssPorSvg from "../style/icons/spss_por.svg";
 import sqliteSvgLight from "../style/icons/sqlite.svg";
 import sqliteSvgDark from "../style/icons/sqlite_dark.svg";
+import stataSvg from "../style/icons/stata.svg";
+import xptSvg from "../style/icons/xpt.svg";
 
 export enum FileType {
   Avro = "apache-avro",
@@ -17,7 +22,12 @@ export enum FileType {
   Ipc = "apache-arrow-ipc-avro",
   Orc = "apache-orc",
   Parquet = "apache-parquet",
+  Sas7bdat = "sas7bdat",
+  SasXport = "sas-xport",
+  Spss = "spss-sav",
+  SpssPortable = "spss-por",
   Sqlite = "sqlite",
+  Stata = "stata-dta",
 }
 
 export namespace FileType {
@@ -38,6 +48,16 @@ function _getIconSvg(fileType: FileType, isLight: boolean): string {
       return avroSvg;
     case FileType.Sqlite:
       return isLight ? sqliteSvgLight : sqliteSvgDark;
+    case FileType.Sas7bdat:
+      return sasSvg;
+    case FileType.SasXport:
+      return xptSvg;
+    case FileType.Spss:
+      return spssSvg;
+    case FileType.SpssPortable:
+      return spssPorSvg;
+    case FileType.Stata:
+      return stataSvg;
     case FileType.Csv:
       throw new Error(`CSV file type does not have an icon`);
     default:
@@ -152,6 +172,60 @@ export function addSqliteFileType(
   return docRegistry.getFileType(FileType.Sqlite)!;
 }
 
+/**
+ * Statistical package formats: SAS, SPSS and Stata data files.
+ *
+ * They are binary and only readable through the server, like Parquet and Avro.
+ */
+const STATISTICAL_FILE_TYPES: Partial<
+  Record<FileType, Pick<DocumentRegistry.IFileType, "displayName" | "mimeTypes" | "extensions">>
+> = {
+  [FileType.Sas7bdat]: {
+    displayName: "SAS Dataset",
+    mimeTypes: ["application/x-sas-data"],
+    extensions: [".sas7bdat"],
+  },
+  [FileType.SasXport]: {
+    displayName: "SAS Transport (XPORT)",
+    mimeTypes: ["application/x-sas-xport"],
+    extensions: [".xpt"],
+  },
+  [FileType.Spss]: {
+    displayName: "SPSS Data",
+    mimeTypes: ["application/x-spss-sav"],
+    extensions: [".sav"],
+  },
+  [FileType.SpssPortable]: {
+    displayName: "SPSS Portable",
+    mimeTypes: ["application/x-spss-por"],
+    extensions: [".por"],
+  },
+  [FileType.Stata]: {
+    displayName: "Stata Data",
+    mimeTypes: ["application/x-stata-dta"],
+    extensions: [".dta"],
+  },
+};
+
+export function addStatisticalFileType(
+  docRegistry: DocumentRegistry,
+  fileType: FileType,
+  options: Partial<DocumentRegistry.IFileType> = {},
+): DocumentRegistry.IFileType {
+  const spec = STATISTICAL_FILE_TYPES[fileType];
+  if (!spec) {
+    throw new Error(`Not a statistical file type: ${fileType}`);
+  }
+  docRegistry.addFileType({
+    ...options,
+    ...spec,
+    name: fileType,
+    contentType: "file",
+    fileFormat: "base64",
+  });
+  return docRegistry.getFileType(fileType)!;
+}
+
 export function ensureFileType(
   docRegistry: DocumentRegistry,
   fileType: FileType,
@@ -172,6 +246,14 @@ export function ensureFileType(
       return addOrcFileType(docRegistry, { icon: _makeIcon(FileType.Orc, isLight) });
     case FileType.Sqlite:
       return addSqliteFileType(docRegistry, { icon: _makeIcon(FileType.Sqlite, isLight) });
+    case FileType.Sas7bdat:
+    case FileType.SasXport:
+    case FileType.Spss:
+    case FileType.SpssPortable:
+    case FileType.Stata:
+      return addStatisticalFileType(docRegistry, fileType, {
+        icon: _makeIcon(fileType, isLight),
+      });
     case FileType.Csv:
       return addCsvFileType(docRegistry);
     default:
