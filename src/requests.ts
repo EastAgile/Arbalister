@@ -98,10 +98,20 @@ type OptionalizeUnion<T> = {
   [K in T extends unknown ? keyof T : never]?: T extends Record<K, infer V> ? V : never;
 };
 
+/**
+ * Serialize a query parameter value; booleans are sent as 1 or 0.
+ */
+function queryValue(value: string | number | boolean): string {
+  if (typeof value === "boolean") {
+    return value ? "1" : "0";
+  }
+  return value.toString();
+}
+
 export async function fetchStats(
   params: Readonly<StatsOptions & FileReadOptions>,
 ): Promise<StatsResponse> {
-  const queryKeys = ["path", "delimiter", "table_name"] as const;
+  const queryKeys = ["path", "delimiter", "table_name", "formats"] as const;
   const queryKeyMap: Record<string, string> = {
     tableName: "table_name",
   };
@@ -112,7 +122,7 @@ export async function fetchStats(
     const value = (params as Readonly<TableOptions> & OptionalizeUnion<FileReadOptions>)[key];
     if (value !== undefined && value != null) {
       const queryKey = queryKeyMap[key] || key;
-      query.set(queryKey, value.toString());
+      query.set(queryKey, queryValue(value));
     }
   }
 
@@ -177,6 +187,7 @@ export async function fetchTable(
     "end_col",
     "delimiter",
     "table_name",
+    "formats",
   ] as const;
 
   const query = new URLSearchParams();
@@ -184,7 +195,7 @@ export async function fetchTable(
   for (const key of queryKeys) {
     const value = (params as Readonly<TableOptions> & OptionalizeUnion<FileReadOptions>)[key];
     if (value !== undefined && value != null) {
-      query.set(key, value.toString());
+      query.set(key, queryValue(value));
     }
   }
 

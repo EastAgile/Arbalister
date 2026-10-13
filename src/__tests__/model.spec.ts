@@ -4,7 +4,7 @@ import * as Arrow from "apache-arrow";
 import { tableFromArrays } from "apache-arrow";
 
 import { ArrowModel } from "../model";
-import { fetchStats, fetchTable } from "../requests";
+import { fetchFileInfo, fetchStats, fetchTable } from "../requests";
 import type { FileInfo, FileReadOptions } from "../file-options";
 import type * as Req from "../requests";
 
@@ -80,6 +80,7 @@ async function resolveAllPendingFetches(): Promise<void> {
 }
 
 jest.mock("../requests", () => ({
+  fetchFileInfo: jest.fn(),
   fetchTable: jest.fn(),
   fetchStats: jest.fn(),
 }));
@@ -128,6 +129,25 @@ describe("ArrowModel", () => {
 
     expect(fetchStats).toHaveBeenCalledTimes(initialStatsCallCount + 1);
     expect(fetchTable).toHaveBeenCalledTimes(initialTableCallCount + 1);
+  });
+
+  it("should start from the given display options", async () => {
+    (fetchFileInfo as jest.Mock).mockResolvedValueOnce({
+      info: {},
+      default_options: { formats: true },
+    });
+    const modelPromise = ArrowModel.fromRemoteFileInfo(
+      { path: "test/adsl.sas7bdat" },
+      { showLabels: false, readOptions: { formats: false } },
+    );
+    await resolveAllPendingFetches();
+    const displayModel = await modelPromise;
+    await resolveAllPendingFetches();
+    await displayModel.ready;
+
+    expect(displayModel.showLabels).toBe(false);
+    expect(displayModel.fileReadOptions.formats).toBe(false);
+    expect(fetchStats).toHaveBeenLastCalledWith({ path: "test/adsl.sas7bdat", formats: false });
   });
 
   describe("Cell region data retrieval", () => {
@@ -183,6 +203,10 @@ describe("ArrowModel", () => {
       expect(model.columnDescription(1)).toBe(
         "name\nLabel: Patient name\nType: Character, length 20\nFormat: $20.",
       );
+      model.showLabels = false;
+      expect(model.data("column-header", 0, 1)).toBe("name");
+      model.showLabels = true;
+
       // A Jenner variable without a label shows its name.
       expect(model.data("column-header", 0, 2)).toBe("age");
       expect(model.columnDescription(2)).toBe("age\nType: Numeric");

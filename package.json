@@ -20,6 +20,7 @@
         "lib/**/*.{d.ts,eot,gif,html,jpg,js,js.map,json,png,svg,woff2,ttf}",
         "style/**/*.{css,js,eot,gif,html,jpg,json,png,svg,woff2,ttf}",
         "style/icons/**/*.{svg}",
+        "schema/*.json",
         "src/**/*.{ts,tsx}"
     ],
     "main": "lib/index.js",
@@ -52,6 +53,7 @@
         "@jupyterlab/apputils": "^4.5.10",
         "@jupyterlab/coreutils": "^6.0.0",
         "@jupyterlab/services": "^7.0.0",
+        "@jupyterlab/settingregistry": "^4.4.10",
         "@jupyterlab/ui-components": "^4.4.10",
         "@lumino/datagrid": "^2.5.3",
         "@lumino/widgets": "^2.7.1",
@@ -85,6 +87,7 @@
     },
     "jupyterlab": {
         "extension": true,
-        "outputDir": "labextension"
+        "outputDir": "labextension",
+        "schemaDir": "schema"
     }
 }

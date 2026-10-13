@@ -8,6 +8,17 @@ export interface SqliteReadOptions {
   table_name: string;
 }
 
+/**
+ * Reading options understood for every file type.
+ */
+export interface CommonReadOptions {
+  /**
+   * Whether the server renders formatted columns through their format (the default) or
+   * sends the stored values.
+   */
+  formats?: boolean;
+}
+
 export interface CsvFileInfo {
   delimiters: string[];
 }
@@ -48,7 +59,8 @@ export type FileInfoFor<T extends FileType> = T extends keyof FileTypeRegistry
 /**
  * Union of all possible file options.
  */
-export type FileReadOptions = FileTypeRegistry[keyof FileTypeRegistry]["readOptions"];
+export type FileReadOptions = FileTypeRegistry[keyof FileTypeRegistry]["readOptions"] &
+  CommonReadOptions;
 
 /**
  * Union of all possible file info.

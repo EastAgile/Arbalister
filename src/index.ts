@@ -1,6 +1,7 @@
 import { ILayoutRestorer } from "@jupyterlab/application";
 import { IThemeManager, showErrorMessage, WidgetTracker } from "@jupyterlab/apputils";
 import { IDefaultDrive } from "@jupyterlab/services";
+import { ISettingRegistry } from "@jupyterlab/settingregistry";
 import { ITranslator } from "@jupyterlab/translation";
 import type { JupyterFrontEnd, JupyterFrontEndPlugin } from "@jupyterlab/application";
 import type { IDocumentWidget } from "@jupyterlab/docregistry";
@@ -9,6 +10,7 @@ import type { Contents } from "@jupyterlab/services";
 import type { DataGrid } from "@lumino/datagrid";
 
 import { ensureFileType, FileType, updateIcon } from "./file-types";
+import { DisplayPreferences } from "./preferences";
 import { ArrowGridViewerFactory } from "./widget";
 import type { ArrowGridViewer, ITextRenderConfig } from "./widget";
 
@@ -74,7 +76,7 @@ const arrowGrid: JupyterFrontEndPlugin<void> = {
   id: "@jenner/dataviewer:arrowgrid",
   description: "Adds a viewer for datasets read by Jenner.",
   requires: [ITranslator, IDefaultDrive],
-  optional: [ILayoutRestorer, IThemeManager],
+  optional: [ILayoutRestorer, IThemeManager, ISettingRegistry],
   autoStart: true,
 };
 
@@ -84,6 +86,7 @@ function activateArrowGrid(
   defaultDrive: Contents.IDrive,
   restorer: ILayoutRestorer | null,
   themeManager: IThemeManager | null,
+  settingRegistry: ISettingRegistry | null,
 ): void {
   console.log("Launching JupyterLab extension @jenner/dataviewer");
 
@@ -120,6 +123,7 @@ function activateArrowGrid(
       contentProviderId: NOOP_CONTENT_PROVIDER_ID,
     },
     app.docRegistry,
+    new DisplayPreferences(settingRegistry?.load(arrowGrid.id) ?? Promise.resolve(null)),
   );
   const tracker = new WidgetTracker<IDocumentWidget<ArrowGridViewer>>({
     namespace: "jenner-dataview",

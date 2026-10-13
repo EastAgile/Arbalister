@@ -61,5 +61,20 @@
     .toolbar-group-cols-rows {
       margin-left: auto;
     }
+
+    .toolbar-toggles {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      white-space: nowrap;
+    }
+
+    .toolbar-toggle {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      user-select: none;
+    }
   }
 }

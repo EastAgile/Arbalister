@@ -1,0 +1,20 @@
+{
+  "title": "Jenner Dataset Viewer",
+  "description": "Settings for the Jenner Dataset Viewer.",
+  "type": "object",
+  "properties": {
+    "labels": {
+      "title": "Labels",
+      "description": "Show variable labels in column headers instead of variable names. The Labels toggle on the viewer toolbar changes this.",
+      "type": "boolean",
+      "default": true
+    },
+    "formats": {
+      "title": "Formats",
+      "description": "Show formatted values instead of stored values. The Formats toggle on the viewer toolbar changes this.",
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "additionalProperties": false
+}

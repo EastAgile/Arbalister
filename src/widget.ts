@@ -16,6 +16,7 @@ import type { IMessageHandler, Message } from "@lumino/messaging";
 
 import { FileType } from "./file-types";
 import { ArrowModel } from "./model";
+import { DisplayPreferences } from "./preferences";
 import { fetchFileSupport } from "./requests";
 import { createToolbar } from "./toolbar";
 import type { FileInfo, FileReadOptions } from "./file-options";
@@ -98,6 +99,8 @@ class UnsupportedFileError extends Error {
 export namespace ArrowGridViewer {
   export interface Options extends ArrowModel.LoadingOptions {
     debounceDelay?: number;
+    /** Where the Labels and Formats toggles start from and are remembered. */
+    preferences?: DisplayPreferences;
   }
 }
 
@@ -153,6 +156,10 @@ export class ArrowGridViewer extends Panel {
     return this._options.path;
   }
 
+  get preferences(): DisplayPreferences | undefined {
+    return this._options.preferences;
+  }
+
   private get dataModel(): ArrowModel | null {
     return this._grid.dataModel as ArrowModel | null;
   }
@@ -175,6 +182,17 @@ export class ArrowGridViewer extends Panel {
 
   set fileReadOptions(fileOptions: FileReadOptions) {
     this._requireDataModel().fileReadOptions = fileOptions;
+  }
+
+  /**
+   * Whether column headers show variable labels or variable names.
+   */
+  get showLabels(): boolean {
+    return this._requireDataModel().showLabels;
+  }
+
+  set showLabels(value: boolean) {
+    this._requireDataModel().showLabels = value;
   }
 
   updateFileReadOptions(fileOptionsUpdate: Partial<FileReadOptions>) {
@@ -229,7 +247,11 @@ export class ArrowGridViewer extends Panel {
         throw new UnsupportedFileError(support.reason ?? "This file type is not supported.");
       }
 
-      const dataModel = await ArrowModel.fromRemoteFileInfo(this._options);
+      const toggles = await (this._options.preferences?.get() ?? DisplayPreferences.DEFAULTS);
+      const dataModel = await ArrowModel.fromRemoteFileInfo(this._options, {
+        showLabels: toggles.labels,
+        readOptions: { formats: toggles.formats },
+      });
       await dataModel.ready;
       this._grid.dataModel = dataModel;
       this._grid.selectionModel = new BasicSelectionModel({ dataModel });
@@ -346,14 +368,17 @@ export class ArrowGridViewerFactory extends ABCWidgetFactory<IDocumentWidget<Arr
   constructor(
     options: DocumentRegistry.IWidgetFactoryOptions<IDocumentWidget<ArrowGridViewer>>,
     docRegistry: DocumentRegistry,
+    preferences?: DisplayPreferences,
   ) {
     super(options);
     this._docRegistry = docRegistry;
+    this._preferences = preferences;
   }
 
   protected createNewWidget(context: DocumentRegistry.Context): IDocumentWidget<ArrowGridViewer> {
     const translator = this.translator;
-    const widget = new ArrowGridDocumentWidget({ context, translator });
+    const content = new ArrowGridViewer({ path: context.path, preferences: this._preferences });
+    const widget = new ArrowGridDocumentWidget({ context, translator, content });
     this.updateIcon(widget);
     widget.content.ready.then(() => {
       this.makeToolbarItems(widget.content).forEach(({ widget: toolbarItem, name }) => {
@@ -404,6 +429,7 @@ export class ArrowGridViewerFactory extends ABCWidgetFactory<IDocumentWidget<Arr
   }
 
   private _docRegistry: DocumentRegistry;
+  private _preferences: DisplayPreferences | undefined;
 }
 
 export interface ITextRenderConfig {

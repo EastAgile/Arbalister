@@ -14,6 +14,7 @@ import type {
   SqliteFileInfo,
   SqliteReadOptions,
 } from "./file-options";
+import type { DisplayToggles } from "./preferences";
 import type { ArrowGridViewer } from "./widget";
 
 abstract class InfoOnlyToolbar extends Widget {
@@ -248,6 +249,97 @@ export class SqliteToolbar extends DropdownToolbar {
 }
 
 /**
+ * Toolbar with Labels and Formats switches, for file types without reading options of their own.
+ *
+ * Labels only changes what the column headers show. Formats is a reading option: turning it
+ * off reloads the data with the stored values instead of formatted text.
+ */
+export class DisplayTogglesToolbar extends InfoOnlyToolbar {
+  constructor(options: ToolbarOptions) {
+    super(options);
+    const trans = (options.translator || nullTranslator).load("jupyterlab");
+    this.addClass("arrow-viewer-toolbar");
+    this._labels = DisplayTogglesToolbar.createCheckbox(
+      trans.__("Labels"),
+      trans.__("Show variable labels in column headers instead of variable names"),
+      this._gridViewer.showLabels,
+    );
+    this._formats = DisplayTogglesToolbar.createCheckbox(
+      trans.__("Formats"),
+      trans.__("Show formatted values instead of stored values"),
+      this._gridViewer.fileReadOptions.formats ?? true,
+    );
+    const toggles = document.createElement("div");
+    toggles.className = "toolbar-toggles";
+    toggles.appendChild(this._labels.parentElement!);
+    toggles.appendChild(this._formats.parentElement!);
+    this.node.insertBefore(toggles, this.node.firstChild);
+  }
+
+  protected static createCheckbox(text: string, title: string, checked: boolean): HTMLInputElement {
+    const label = document.createElement("label");
+    label.className = "toolbar-label toolbar-toggle";
+    label.title = title;
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = checked;
+    label.appendChild(input);
+    label.appendChild(document.createTextNode(` ${text}`));
+    return input;
+  }
+
+  async handleEvent(event: Event): Promise<void> {
+    if (event.type !== "change") {
+      return;
+    }
+    if (event.target === this._labels) {
+      this._gridViewer.showLabels = this._labels.checked;
+      this.remember("labels", this._labels.checked);
+      return;
+    }
+    if (event.target === this._formats) {
+      const formats = this._formats.checked;
+      this._formats.disabled = true;
+      try {
+        this._gridViewer.updateFileReadOptions({ formats });
+        await this._gridViewer.ready;
+        this.remember("formats", formats);
+      } catch (error) {
+        this._formats.checked = !formats;
+        const trans = Dialog.translator.load("jupyterlab");
+        await showDialog({
+          title: trans.__("Error changing the formats option"),
+          body: typeof error === "string" ? error : (error as Error).message,
+          buttons: [Dialog.cancelButton({ label: trans.__("Close") })],
+        });
+      } finally {
+        this._formats.disabled = false;
+      }
+    }
+  }
+
+  /**
+   * Keep the choice for files opened later. Failing to save it does not undo the change here.
+   */
+  private remember(key: keyof DisplayToggles, value: boolean): void {
+    this._gridViewer.preferences?.set(key, value).catch((error) => {
+      console.warn(`Jenner dataset viewer: cannot save the ${key} toggle`, error);
+    });
+  }
+
+  protected onAfterAttach(_msg: Message): void {
+    this.node.addEventListener("change", this);
+  }
+
+  protected onBeforeDetach(_msg: Message): void {
+    this.node.removeEventListener("change", this);
+  }
+
+  private _labels: HTMLInputElement;
+  private _formats: HTMLInputElement;
+}
+
+/**
  * Common options for toolbar creation.
  */
 export interface ToolbarOptions {
@@ -278,8 +370,7 @@ export function createToolbar<T extends FileType>(
       );
       break;
     default:
-      widget = new (class extends InfoOnlyToolbar {})(options);
-      widget.addClass("arrow-viewer-toolbar");
+      widget = new DisplayTogglesToolbar(options);
       break;
   }
 

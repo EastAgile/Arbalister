@@ -4,7 +4,7 @@ import type * as Arrow from "apache-arrow";
 
 import { PairMap } from "./collection";
 import { fetchFileInfo, fetchStats, fetchTable } from "./requests";
-import type { FileInfo, FileReadOptions } from "./file-options";
+import type { CommonReadOptions, FileInfo, FileReadOptions } from "./file-options";
 
 export namespace ArrowModel {
   export interface PrefetchFactors {
@@ -19,6 +19,16 @@ export namespace ArrowModel {
     loadingRepr?: string;
     nullRepr?: string;
     prefetchFactors?: PrefetchFactors;
+  }
+
+  /**
+   * How a model starts out, when that differs from the defaults.
+   */
+  export interface DisplayOptions {
+    /** Whether column headers show variable labels. */
+    showLabels?: boolean;
+    /** Reading options applied over the server's defaults for the file. */
+    readOptions?: CommonReadOptions;
   }
 }
 
@@ -40,11 +50,20 @@ export class ArrowModel extends DataModel {
     return label ? label : null;
   }
 
-  static async fromRemoteFileInfo(loadingOptions: ArrowModel.LoadingOptions) {
+  static async fromRemoteFileInfo(
+    loadingOptions: ArrowModel.LoadingOptions,
+    display: ArrowModel.DisplayOptions = {},
+  ) {
     const { info: fileInfo, default_options: fileOptions } = await fetchFileInfo({
       path: loadingOptions.path,
     });
-    return new ArrowModel(loadingOptions, fileOptions, fileInfo);
+    const model = new ArrowModel(
+      loadingOptions,
+      { ...fileOptions, ...display.readOptions },
+      fileInfo,
+    );
+    model.showLabels = display.showLabels ?? model.showLabels;
+    return model;
   }
 
   constructor(
@@ -107,6 +126,28 @@ export class ArrowModel extends DataModel {
     return this._ready;
   }
 
+  /**
+   * Whether column headers show variable labels (the default) or variable names.
+   */
+  get showLabels(): boolean {
+    return this._showLabels;
+  }
+
+  set showLabels(value: boolean) {
+    if (value === this._showLabels) {
+      return;
+    }
+    this._showLabels = value;
+    this.emitChanged({
+      type: "cells-changed",
+      region: "column-header",
+      row: 0,
+      rowSpan: 1,
+      column: 0,
+      columnSpan: this._numCols,
+    });
+  }
+
   get schema(): Arrow.Schema {
     return this._schema;
   }
@@ -158,7 +199,7 @@ export class ArrowModel extends DataModel {
   columnHeader(column: number): string {
     const field = this.schema.fields[column];
     const label = ArrowModel.fieldLabel(field);
-    if (label !== null) {
+    if (label !== null && this._showLabels) {
       return label;
     }
     if (field.metadata.has(ArrowModel.META_TYPE)) {
@@ -247,6 +288,8 @@ export class ArrowModel extends DataModel {
       this._numCols,
     );
 
+    // A reload (new read options) replaces the chunk map; drop answers to older requests.
+    const chunks = this._chunks;
     const table = await fetchTable({
       path: this._loadingParams.path,
       start_row: startRow,
@@ -261,6 +304,9 @@ export class ArrowModel extends DataModel {
       startCol,
     });
 
+    if (chunks !== this._chunks) {
+      return;
+    }
     this.storeChunkData(chunkIdx, chunk, factors);
   }
 
@@ -353,6 +399,7 @@ export class ArrowModel extends DataModel {
   private _schema!: Arrow.Schema;
   private _chunks!: ChunkMap;
   private _ready: Promise<void>;
+  private _showLabels = true;
 }
 
 class ChunkMap {
