@@ -1,7 +1,7 @@
 import "jest-canvas-mock";
 
+import * as Arrow from "apache-arrow";
 import { tableFromArrays } from "apache-arrow";
-import type * as Arrow from "apache-arrow";
 
 import { ArrowModel } from "../model";
 import { fetchStats, fetchTable } from "../requests";
@@ -151,6 +151,46 @@ describe("ArrowModel", () => {
       expect(col0Header).toBe(expectedCol0Header);
       expect(col1Header).toBe(expectedCol1Header);
       expect(col2Header).toBe(expectedCol2Header);
+    });
+
+    it("should show the label from field metadata in the column header", async () => {
+      const labelled = new Arrow.Schema(
+        MOCK_TABLE.schema.fields.map((field, i) =>
+          i === 2
+            ? field.clone({ metadata: new Map([["jenner.type", "num"]]) })
+            : i === 1
+            ? field.clone({
+                metadata: new Map([
+                  ["jenner.label", "Patient name"],
+                  ["jenner.type", "char"],
+                  ["jenner.length", "20"],
+                  ["jenner.format", "$20."],
+                ]),
+              })
+            : field,
+        ),
+      );
+      (fetchStats as jest.Mock).mockImplementationOnce(async () => ({
+        num_rows: MOCK_TABLE.numRows,
+        num_cols: MOCK_TABLE.numCols,
+        schema: labelled,
+      }));
+      model = new ArrowModel({ path: "test/path.parquet" }, {} as FileReadOptions, {} as FileInfo);
+      await resolveAllPendingFetches();
+      await model.ready;
+
+      expect(model.data("column-header", 0, 1)).toBe("Patient name");
+      expect(model.columnDescription(1)).toBe(
+        "name\nLabel: Patient name\nType: Character, length 20\nFormat: $20.",
+      );
+      // A Jenner variable without a label shows its name.
+      expect(model.data("column-header", 0, 2)).toBe("age");
+      expect(model.columnDescription(2)).toBe("age\nType: Numeric");
+      // Fields without Jenner metadata keep the default header.
+      const field0 = MOCK_TABLE.schema.fields[0];
+      expect(model.data("column-header", 0, 0)).toBe(
+        `${field0.name} (${field0.type}${field0.nullable ? " | null" : ""})`,
+      );
     });
 
     it("should return correct data for row-header region", async () => {

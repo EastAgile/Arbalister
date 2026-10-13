@@ -23,6 +23,23 @@ export namespace ArrowModel {
 }
 
 export class ArrowModel extends DataModel {
+  /** Field metadata key holding a variable label. */
+  static readonly META_LABEL = "jenner.label";
+  /** Field metadata key holding a variable format, such as `DATE9.`. */
+  static readonly META_FORMAT = "jenner.format";
+  /** Field metadata key holding the storage type, `num` or `char`. */
+  static readonly META_TYPE = "jenner.type";
+  /** Field metadata key holding the storage length in bytes. */
+  static readonly META_LENGTH = "jenner.length";
+
+  /**
+   * The label carried in a field's metadata, or null when it has none.
+   */
+  static fieldLabel(field: Arrow.Field): string | null {
+    const label = field.metadata.get(ArrowModel.META_LABEL);
+    return label ? label : null;
+  }
+
   static async fromRemoteFileInfo(loadingOptions: ArrowModel.LoadingOptions) {
     const { info: fileInfo, default_options: fileOptions } = await fetchFileInfo({
       path: loadingOptions.path,
@@ -120,12 +137,8 @@ export class ArrowModel extends DataModel {
     switch (region) {
       case "body":
         return this.dataBody(row, column);
-      case "column-header": {
-        // This is to showcase that we can put additional information in the column header but it
-        // does not look good. HuggingFace dataset has some good inspiration.
-        const field = this.schema.fields[column];
-        return `${field.name} (${field.type}${field.nullable ? " | null" : ""})`;
-      }
+      case "column-header":
+        return this.columnHeader(column);
       case "row-header":
         return row.toString();
       case "corner-header":
@@ -133,6 +146,53 @@ export class ArrowModel extends DataModel {
       default:
         throw "unreachable";
     }
+  }
+
+  /**
+   * The text shown in a column header.
+   *
+   * A labelled variable shows its label. A variable described by Jenner metadata shows its
+   * name alone, with the type moved to the tooltip, since a formatted column is sent as text
+   * and its Arrow type says little about the variable.
+   */
+  columnHeader(column: number): string {
+    const field = this.schema.fields[column];
+    const label = ArrowModel.fieldLabel(field);
+    if (label !== null) {
+      return label;
+    }
+    if (field.metadata.has(ArrowModel.META_TYPE)) {
+      return field.name;
+    }
+    // This is to showcase that we can put additional information in the column header but it
+    // does not look good. HuggingFace dataset has some good inspiration.
+    return `${field.name} (${field.type}${field.nullable ? " | null" : ""})`;
+  }
+
+  /**
+   * Text describing a column, for a tooltip on its header: the variable name, followed by
+   * its type and format when the schema carries them.
+   */
+  columnDescription(column: number): string {
+    const field = this.schema?.fields[column];
+    if (!field) {
+      return "";
+    }
+    const meta = field.metadata;
+    const lines = [field.name];
+    const label = ArrowModel.fieldLabel(field);
+    if (label !== null && label !== field.name) {
+      lines.push(`Label: ${label}`);
+    }
+    const type = meta.get(ArrowModel.META_TYPE);
+    const length = meta.get(ArrowModel.META_LENGTH);
+    const typeText = type === "char" ? "Character" : type === "num" ? "Numeric" : `${field.type}`;
+    lines.push(`Type: ${typeText}${length ? `, length ${length}` : ""}`);
+    const format = meta.get(ArrowModel.META_FORMAT);
+    if (format) {
+      lines.push(`Format: ${format}`);
+    }
+    return lines.join("\n");
   }
 
   private dataBody(row: number, col: number): string {

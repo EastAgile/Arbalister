@@ -136,6 +136,7 @@ export class ArrowGridViewer extends Panel {
     };
 
     this.addWidget(this._grid);
+    this._grid.node.addEventListener("mousemove", this._onGridMouseMove);
 
     this._ready = this.initialize();
   }
@@ -273,6 +274,27 @@ export class ArrowGridViewer extends Panel {
       }
     }
   }
+
+  dispose(): void {
+    this._grid.node.removeEventListener("mousemove", this._onGridMouseMove);
+    super.dispose();
+  }
+
+  /**
+   * Show the variable name, type and format as a tooltip on column headers, since the header
+   * itself may show a label instead of the name.
+   */
+  private _onGridMouseMove = (event: MouseEvent): void => {
+    const dataModel = this.dataModel;
+    const hit = this._grid.hitTest(event.clientX, event.clientY);
+    const title =
+      dataModel !== null && hit.region === "column-header"
+        ? dataModel.columnDescription(hit.column)
+        : "";
+    if (this._grid.node.title !== title) {
+      this._grid.node.title = title;
+    }
+  };
 
   private async _updateRenderer(): Promise<void> {
     if (this._baseRenderer === null) {
